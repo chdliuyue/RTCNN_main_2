@@ -76,7 +76,6 @@ def E_MNL(cont_vars_num, emb_vars_num, choices_num, unique_cats_num, drop=0.2,
     print(model)
 
     return model
-E_MNL(5, 12, 3, 81)
 
 # (5, 12, 3, 81, 2, 15)
 def EL_MNL(cont_vars_num, emb_vars_num, choices_num, unique_cats_num,
@@ -143,7 +142,6 @@ def EL_MNL(cont_vars_num, emb_vars_num, choices_num, unique_cats_num,
     print(model)
 
     return model
-EL_MNL(5, 12, 3, 81, 2, 15)
 
 # (5, 12, 3, 15)
 def L_MNL(cont_vars_num, emb_vars_num, choices_num, n_nodes):
@@ -180,7 +178,6 @@ def L_MNL(cont_vars_num, emb_vars_num, choices_num, n_nodes):
     print(model)
 
     return model
-L_MNL(5, 12, 3, 15)
 
 def TE_MNL(cont_vars_num, emb_vars_num, choices_num, unique_cats_num, lambda_epochs=1, drop=0.2):
 
@@ -304,7 +301,8 @@ def TEL_MNL(cont_vars_num, emb_vars_num, choices_num, unique_cats_num,
 
     return model
 
-# MNL(17, 3)
-# E_MNL(5, 12, 3, 81)
-# EL_MNL(5, 12, 3, 81, 2, 15)
-
+if __name__ == "__main__":
+    MNL(17, 3)
+    E_MNL(5, 12, 3, 81)
+    EL_MNL(5, 12, 3, 81, 2, 15)
+    L_MNL(5, 12, 3, 15)
