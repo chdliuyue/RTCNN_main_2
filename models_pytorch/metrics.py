@@ -28,7 +28,19 @@ def _accepts_single_input(model):
     except (TypeError, ValueError):
         return False
     params = list(signature.parameters.values())
-    return len(params) == 2
+    positional_params = [
+        param
+        for param in params
+        if param.kind in (param.POSITIONAL_ONLY, param.POSITIONAL_OR_KEYWORD)
+    ]
+    has_var_positional = any(param.kind == param.VAR_POSITIONAL for param in params)
+    if positional_params and positional_params[0].name == "self":
+        positional_count = len(positional_params) - 1
+    else:
+        positional_count = len(positional_params)
+    if has_var_positional and positional_count <= 1:
+        return True
+    return positional_count == 1
 
 
 def _prepare_single_input(x_tensor):
