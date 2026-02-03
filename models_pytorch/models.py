@@ -232,18 +232,31 @@ def TE_MNL(cont_vars_num, emb_vars_num, choices_num, unique_cats_num, lambda_epo
 
 
 def TEL_MNL(cont_vars_num, emb_vars_num, choices_num, unique_cats_num,
-            extra_emb_dims, n_nodes, lambda_epochs=1, drop=0.2):
+            extra_emb_dims, n_nodes, lambda_epochs=1, drop=0.2, use_emb_extra=True):
     class Model(nn.Module):
         def __init__(self):
             super(Model, self).__init__()
             self.emb_size = choices_num + extra_emb_dims
             self.lambda_epochs = lambda_epochs
+            self.use_emb_extra = use_emb_extra
             self.embeddings = nn.Embedding(unique_cats_num, self.emb_size, max_norm=1, norm_type=2.0)
             self.dropout = nn.Dropout(drop)
 
-            self.dense = nn.Conv2d(1, n_nodes, kernel_size=(emb_vars_num*extra_emb_dims, 1), stride=1, padding=0, dtype=torch.float32)
-            self.relu3 = nn.ReLU()
-            self.fc3 = nn.Linear(n_nodes, choices_num, dtype=torch.float32)
+            if self.use_emb_extra:
+                self.dense = nn.Conv2d(
+                    1,
+                    n_nodes,
+                    kernel_size=(emb_vars_num * extra_emb_dims, 1),
+                    stride=1,
+                    padding=0,
+                    dtype=torch.float32,
+                )
+                self.relu3 = nn.ReLU()
+                self.fc3 = nn.Linear(n_nodes, choices_num, dtype=torch.float32)
+            else:
+                self.dense = None
+                self.relu3 = None
+                self.fc3 = None
 
             self.fc1 = nn.Linear(emb_vars_num * choices_num, emb_vars_num * choices_num)
             self.fc2 = nn.Linear(cont_vars_num * choices_num, cont_vars_num * choices_num)
@@ -265,12 +278,14 @@ def TEL_MNL(cont_vars_num, emb_vars_num, choices_num, unique_cats_num,
             emb = self.dropout(emb)
             emb = emb.float()
 
-            emb_extra = emb[:, :, choices_num:]
-            emb_extra = emb_extra.reshape(-1, 1, emb_vars_num*extra_emb_dims, 1)
-            emb_extra = self.dense(emb_extra)
-            emb_extra = self.relu3(emb_extra)
-            emb_extra = emb_extra.reshape(-1, n_nodes)
-            emb_extra = self.fc3(emb_extra)
+            emb_extra = None
+            if self.use_emb_extra:
+                emb_extra = emb[:, :, choices_num:]
+                emb_extra = emb_extra.reshape(-1, 1, emb_vars_num * extra_emb_dims, 1)
+                emb_extra = self.dense(emb_extra)
+                emb_extra = self.relu3(emb_extra)
+                emb_extra = emb_extra.reshape(-1, n_nodes)
+                emb_extra = self.fc3(emb_extra)
 
             emb = emb[:, :, :choices_num]
             emb = emb.reshape(-1, emb_vars_num * choices_num)
@@ -293,7 +308,8 @@ def TEL_MNL(cont_vars_num, emb_vars_num, choices_num, unique_cats_num,
             evidence = dict()
             evidence[0] = self.activation1(output1)
             evidence[1] = self.activation2(output2)
-            evidence[2] = self.activation3(emb_extra)
+            if self.use_emb_extra:
+                evidence[2] = self.activation3(emb_extra)
 
             return evidence
 

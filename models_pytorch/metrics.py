@@ -1,3 +1,4 @@
+import inspect
 import numpy as np
 import torch
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
@@ -20,6 +21,23 @@ def _one_hot_targets(targets):
     return np.argmax(targets, axis=1)
 
 
+def _accepts_single_input(model):
+    """Return True if the model forward expects a single input tensor."""
+    try:
+        signature = inspect.signature(model.forward)
+    except (TypeError, ValueError):
+        return False
+    params = list(signature.parameters.values())
+    return len(params) == 2
+
+
+def _prepare_single_input(x_tensor):
+    """Prepare tensor for models that only accept X (e.g., plain MNL)."""
+    if x_tensor.ndim == 4 and x_tensor.shape[-1] == 1:
+        return x_tensor.permute(0, 3, 1, 2)
+    return x_tensor
+
+
 def get_probabilities(model, x_data, q_data, evidential=False):
     """Run the model and return class probabilities plus evidential outputs if requested."""
     model.eval()
@@ -27,13 +45,16 @@ def get_probabilities(model, x_data, q_data, evidential=False):
         device = next(model.parameters()).device
         x_tensor = torch.tensor(x_data).float().to(device)
         q_tensor = torch.tensor(q_data).long().to(device)
+        single_input = _accepts_single_input(model)
+        if single_input:
+            x_tensor = _prepare_single_input(x_tensor)
         if evidential:
-            evidence = model(x_tensor, q_tensor)
+            evidence = model(x_tensor) if single_input else model(x_tensor, q_tensor)
             alpha = {key: value + 1 for key, value in evidence.items()}
             alpha_a = DS_Combin(alpha, evidence[0].shape[1])
             probs = alpha_a / torch.sum(alpha_a, dim=1, keepdim=True)
             return probs.cpu(), {k: v.cpu() for k, v in evidence.items()}, alpha_a.cpu()
-        logits = model(x_tensor, q_tensor)
+        logits = model(x_tensor) if single_input else model(x_tensor, q_tensor)
         return torch.softmax(logits, dim=1).cpu(), None, None
 
 
@@ -89,6 +110,9 @@ def extract_exog_betas(model):
     if hasattr(model, "utilities2"):
         betas = model.utilities2.weight.detach().cpu().numpy().flatten()
         return betas
+    if hasattr(model, "conv"):
+        betas = model.conv.weight.detach().cpu().numpy().flatten()
+        return betas
     return None
 
 
@@ -110,7 +134,13 @@ def compute_direct_elasticities(probs, x_data, betas_exog, x_vars):
     return elasticities
 
 
-def compute_vot(betas_exog, x_vars, time_var="TT_SCALED(/100)", cost_var="COST_SCALED(/100)"):
+def compute_vot(
+    betas_exog,
+    x_vars,
+    time_var="TT_SCALED(/100)",
+    cost_var="COST_SCALED(/100)",
+    return_components=False,
+):
     """Compute Value of Time (VoT) from time/cost coefficients when available."""
     if betas_exog is None:
         return None
@@ -120,7 +150,14 @@ def compute_vot(betas_exog, x_vars, time_var="TT_SCALED(/100)", cost_var="COST_S
     beta_cost = betas_exog[x_vars.index(cost_var)]
     if beta_cost == 0:
         return None
-    return float(-beta_time / beta_cost)
+    vot = float(-beta_time / beta_cost)
+    if return_components:
+        return {
+            "vot": vot,
+            "beta_time": float(beta_time),
+            "beta_cost": float(beta_cost),
+        }
+    return vot
 
 
 def compute_uncertainty(alpha):
@@ -141,7 +178,7 @@ def evaluate_model(model, x_data, q_data, y_data, x_vars=None, evidential=False,
     betas_exog = extract_exog_betas(model)
     if x_vars:
         metrics["elasticities"] = compute_direct_elasticities(probs, x_data, betas_exog, x_vars)
-        metrics["vot"] = compute_vot(betas_exog, x_vars)
+        metrics["vot"] = compute_vot(betas_exog, x_vars, return_components=True)
     else:
         metrics["elasticities"] = {}
         metrics["vot"] = None
