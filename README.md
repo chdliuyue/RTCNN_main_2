@@ -52,6 +52,14 @@ python report_metrics.py
 
 该脚本同样训练所有模型，但以更简洁的报告形式输出指标（包含训练集与测试集）。
 
+### 3) 生成完整本地化输出（指标、混淆矩阵、Elasticities、VoT、敏感性/消融/不确定性分析）
+
+```bash
+python full_analysis.py
+```
+
+该脚本会训练所有模型（含 MNL 基线），并把完整指标与图表保存到 `analysis_outputs/` 目录中。
+
 ## 其他实验脚本
 
 ### 高斯噪声鲁棒性评估

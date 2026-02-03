@@ -7,8 +7,9 @@ from SM_data import (
     y_TEST,
     X_vars,
 )
-from models_pytorch.models import E_MNL, EL_MNL, L_MNL, TE_MNL, TEL_MNL
+from models_pytorch.models import MNL, E_MNL, EL_MNL, L_MNL, TE_MNL, TEL_MNL
 from models_pytorch.trainer import (
+    MNL_train,
     E_MNL_train,
     EL_MNL_train,
     L_MNL_train,
@@ -27,7 +28,13 @@ def print_report(name, metrics):
     print(f"Recall: {metrics['recall']:.4f}")
     print(f"ECE: {metrics['ece']:.4f}")
     print(f"Brier score: {metrics['brier_score']:.4f}")
-    print(f"VoT: {metrics['vot']}")
+    vot = metrics["vot"]
+    if isinstance(vot, dict):
+        print(f"VoT: {vot.get('vot')}")
+        print(f"  beta_time: {vot.get('beta_time')}")
+        print(f"  beta_cost: {vot.get('beta_cost')}")
+    else:
+        print(f"VoT: {vot}")
     print("Confusion matrix:")
     print(metrics["confusion_matrix"])
     if metrics["elasticities"]:
@@ -48,6 +55,13 @@ def main():
     n_nodes = 15
     lambda_epochs = 100
     configs = [
+        {
+            "name": "MNL",
+            "trainer": MNL_train,
+            "model": MNL,
+            "kwargs": {},
+            "evidential": False,
+        },
         {
             "name": "E_MNL",
             "trainer": E_MNL_train,

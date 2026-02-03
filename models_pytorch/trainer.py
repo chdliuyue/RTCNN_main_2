@@ -78,6 +78,88 @@ def E_MNL_train(X_train, Q_train, y_train, model, N_EPOCHS=100, LR=0.001, BATCH_
     return best_model, best_loss, best_acc, best_ll, best_f1, Loss  ###
 
 
+def MNL_train(
+    X_train,
+    Q_train,
+    y_train,
+    model,
+    N_EPOCHS=100,
+    LR=0.001,
+    BATCH_SIZE=50,
+    l2=0.01,
+    VERBOSE=1,
+    save_model=1,
+    model_filename=str(),
+):
+    NUM_CHOICES = X_train.shape[2]
+    NUM_CONT_VARS = X_train.shape[1]
+
+    mnl_model = model(NUM_CONT_VARS, NUM_CHOICES).to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(mnl_model.parameters(), lr=LR, weight_decay=l2)
+
+    if VERBOSE:
+        print(mnl_model)
+
+    train_dataset = create_dataset(X_train, Q_train, y_train)
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+
+    Loss, Acc, LL, F1 = [], [], [], []
+    best_loss, best_acc, best_ll, best_epoch, best_f1 = float("inf"), 0, float("-inf"), 0, 0
+    best_model, best_model_weight = mnl_model, mnl_model.state_dict()
+    for epoch in range(N_EPOCHS):
+        total_loss, total_acc, total_ll, total_f1 = 0, 0, 0, 0
+        for i, data in enumerate(train_loader):
+            X, _, y = data[0].to(device), data[1].to(device), data[2].to(device)
+            optimizer.zero_grad()
+            X = X.permute(0, 3, 1, 2)
+            output = mnl_model(X)
+            loss = criterion(output, y)
+            loss.backward()
+            acc = calculate_accuracy(output, y)
+            ll = calculate_ll(output, y)
+            f1 = calculate_f1(output, y)
+            clip_grad_norm_(mnl_model.parameters(), max_norm=50.0)
+            optimizer.step()
+            total_loss += loss.item()
+            total_acc += acc
+            total_ll += ll
+            total_f1 += f1
+
+        temp_loss = total_loss / len(train_loader)
+        temp_acc = total_acc / len(train_loader)
+        temp_ll = total_ll
+        temp_f1 = total_f1 / len(train_loader)
+        Loss.append(temp_loss)
+        Acc.append(temp_acc)
+        LL.append(temp_ll)
+        F1.append(temp_f1)
+        if epoch % 10 == 0 and VERBOSE:
+            print(
+                "Epoch {}, Loss: {:.4f}, Accuracy: {:.4f}, LL: {:.0f}, f1: {:.4f}".format(
+                    epoch, temp_loss, temp_acc, temp_ll, temp_f1
+                )
+            )
+
+        if temp_acc > best_acc:
+            best_loss, best_acc, best_ll, best_epoch, best_f1 = temp_loss, temp_acc, temp_ll, epoch, temp_f1
+            best_model, best_model_weight = mnl_model, mnl_model.state_dict()
+
+    print("------------------------------------------------")
+    print(
+        "best Epoch {}, best Loss: {:.4f}, best Accuracy: {:.4f}, best LL: {:.0f}, best f1: {:.4f}".format(
+            best_epoch, best_loss, best_acc, best_ll, best_f1
+        )
+    )
+    print("------------------------------------------------")
+
+    if save_model:
+        torch.save(best_model_weight, str(best_epoch) + str("_") + model_filename)
+        print("Model saved as {}".format(str(best_epoch) + str("_") + model_filename))
+
+    return best_model, best_loss, best_acc, best_ll, best_f1, Loss
+
+
 def EL_MNL_train(X_train, Q_train, y_train, model, extra_emb_dims, n_nodes, N_EPOCHS=100, LR=0.001, l2=0.01,
                  BATCH_SIZE=50, drop=0.2, VERBOSE=1, save_model=1, model_filename=str()):
     NUM_CHOICES = X_train.shape[2]
@@ -270,8 +352,24 @@ def TE_MNL_train(X_train, Q_train, y_train, model, lambda_epochs, N_EPOCHS=100, 
     return best_model, best_loss, best_acc, best_f1, Loss
 
 
-def TEL_MNL_train(X_train, Q_train, y_train, model, lambda_epochs, extra_emb_dims, n_nodes, N_EPOCHS=100, LR=0.001,
-                  BATCH_SIZE=50, drop=0.2, l2=0.01, VERBOSE=1, save_model=1, model_filename=str()):
+def TEL_MNL_train(
+    X_train,
+    Q_train,
+    y_train,
+    model,
+    lambda_epochs,
+    extra_emb_dims,
+    n_nodes,
+    N_EPOCHS=100,
+    LR=0.001,
+    BATCH_SIZE=50,
+    drop=0.2,
+    l2=0.01,
+    VERBOSE=1,
+    save_model=1,
+    model_filename=str(),
+    use_emb_extra=True,
+):
     NUM_CHOICES = X_train.shape[2]
     NUM_CONT_VARS = X_train.shape[1]
     NUM_EMB_VARS = Q_train.shape[-1]
@@ -279,7 +377,17 @@ def TEL_MNL_train(X_train, Q_train, y_train, model, lambda_epochs, extra_emb_dim
     NUM_UNIQUE_CATS = len(UNIQUE_CATS)
     lambda_epochs = lambda_epochs
 
-    tel_mnl_model = model(NUM_CONT_VARS, NUM_EMB_VARS, NUM_CHOICES, NUM_UNIQUE_CATS, extra_emb_dims, n_nodes, lambda_epochs, drop).to(device)
+    tel_mnl_model = model(
+        NUM_CONT_VARS,
+        NUM_EMB_VARS,
+        NUM_CHOICES,
+        NUM_UNIQUE_CATS,
+        extra_emb_dims,
+        n_nodes,
+        lambda_epochs,
+        drop,
+        use_emb_extra=use_emb_extra,
+    ).to(device)
     optimizer = optim.Adam(tel_mnl_model.parameters(), lr=LR, weight_decay=l2)
 
     if VERBOSE:
@@ -336,4 +444,3 @@ def TEL_MNL_train(X_train, Q_train, y_train, model, lambda_epochs, extra_emb_dim
         print('Model saved as {}'.format(str(best_epoch)+str("_")+model_filename))
 
     return best_model, best_loss, best_acc, best_f1, Loss
-
