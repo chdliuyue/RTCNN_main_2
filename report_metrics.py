@@ -19,6 +19,7 @@ from models_pytorch.metrics import evaluate_model
 
 
 def print_report(name, metrics):
+    """Print a readable metrics block for a model and dataset split."""
     print(f"=== {name} ===")
     print(f"Accuracy: {metrics['accuracy']:.4f}")
     print(f"F1: {metrics['f1']:.4f}")
@@ -37,6 +38,7 @@ def print_report(name, metrics):
 
 
 def main():
+    """Train all models once and report test metrics for a quick comparison."""
     n_epochs = 200
     lr = 0.001
     l2 = 0.00001
@@ -104,7 +106,15 @@ def main():
             save_model=0,
             **config["kwargs"],
         )
-        metrics = evaluate_model(
+        metrics_train = evaluate_model(
+            trained_model,
+            X_TRAIN,
+            Q_TRAIN,
+            y_TRAIN,
+            x_vars=X_vars,
+            evidential=config["evidential"],
+        )
+        metrics_test = evaluate_model(
             trained_model,
             X_TEST,
             Q_TEST,
@@ -112,7 +122,8 @@ def main():
             x_vars=X_vars,
             evidential=config["evidential"],
         )
-        print_report(config["name"], metrics)
+        print_report(f"{config['name']} (train)", metrics_train)
+        print_report(f"{config['name']} (test)", metrics_test)
 
 
 if __name__ == "__main__":

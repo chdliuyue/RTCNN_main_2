@@ -1,3 +1,4 @@
+# Statistical comparison experiment for trained models.
 from SM_data import X_TRAIN, Q_TRAIN, y_TRAIN, X_TEST, Q_TEST, y_TEST
 from models_pytorch.models import E_MNL, EL_MNL, L_MNL, TE_MNL, TEL_MNL
 from models_pytorch.trainer import E_MNL_train, EL_MNL_train, L_MNL_train, TE_MNL_train, TEL_MNL_train
@@ -87,5 +88,4 @@ torch.save(Loss4, 'loss4.pt')
 # print(clarck2 - clarck6)
 # print(clarck3 - clarck6)
 # print(clarck4 - clarck6)
-
 

@@ -2,7 +2,7 @@ import torch
 import matplotlib.pyplot as plt
 import random
 
-# 加载数据
+# 加载数据并绘制改进样式的损失曲线对比图。
 loss1 = torch.load('loss1.pt')[0:100]
 loss2 = torch.load('loss2.pt')[0:100]
 loss3 = torch.load('loss3.pt')[0:100]

@@ -4,6 +4,7 @@ import random
 import torch.nn.functional as F
 
 
+# Plot loss curves for multiple models using saved .pt files.
 loss1 = torch.load('loss1.pt')[0:100]
 loss2 = torch.load('loss2.pt')[0:100]
 loss3 = torch.load('loss3.pt')[0:100]
