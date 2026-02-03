@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from adjustText import adjust_text
 
 
+# Experiment: evaluate robustness under Gaussian noise perturbations.
 N_EPOCHS = 200
 LR = 0.005
 l2 = 0.00001
@@ -22,6 +23,7 @@ n_nodes = 15  # 15
 
 lambda_epochs = 100
 
+# Build noisy variants of the test set to measure degradation.
 noise1 = np.random.normal(0, 0.2, size=X_TEST.shape)
 noise2 = np.random.normal(0, 0.4, size=X_TEST.shape)
 noise3 = np.random.normal(0, 0.6, size=X_TEST.shape)
@@ -111,7 +113,6 @@ print('test4 f1: {:.3f}, std: {:.3f}'.format(re_f1, st_f1))
 # print("######################################################")
 # print('test5 acc: {:.3f}, std: {:.3f}'.format(re_acc, st_acc))
 # print('test5 f1: {:.3f}, std: {:.3f}'.format(re_f1, st_f1))
-
 
 
 

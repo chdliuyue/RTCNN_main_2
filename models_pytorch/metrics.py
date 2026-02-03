@@ -6,12 +6,14 @@ from models_pytorch.utils import DS_Combin
 
 
 def _to_numpy(array):
+    """Convert torch tensors to numpy arrays while leaving numpy arrays untouched."""
     if isinstance(array, torch.Tensor):
         return array.detach().cpu().numpy()
     return array
 
 
 def _one_hot_targets(targets):
+    """Normalize targets to class indices (handles one-hot targets)."""
     targets = _to_numpy(targets)
     if targets.ndim == 1:
         return targets
@@ -19,6 +21,7 @@ def _one_hot_targets(targets):
 
 
 def get_probabilities(model, x_data, q_data, evidential=False):
+    """Run the model and return class probabilities plus evidential outputs if requested."""
     model.eval()
     with torch.no_grad():
         device = next(model.parameters()).device
@@ -35,6 +38,7 @@ def get_probabilities(model, x_data, q_data, evidential=False):
 
 
 def classification_metrics(probs, targets):
+    """Compute standard classification metrics and confusion matrix."""
     probs_np = _to_numpy(probs)
     true_labels = _one_hot_targets(targets)
     pred_labels = np.argmax(probs_np, axis=1)
@@ -53,6 +57,7 @@ def classification_metrics(probs, targets):
 
 
 def expected_calibration_error(probs, targets, n_bins=15):
+    """Estimate Expected Calibration Error (ECE) via confidence binning."""
     probs_np = _to_numpy(probs)
     true_labels = _one_hot_targets(targets)
     confidences = np.max(probs_np, axis=1)
@@ -70,6 +75,7 @@ def expected_calibration_error(probs, targets, n_bins=15):
 
 
 def brier_score(probs, targets):
+    """Compute the multiclass Brier score for probabilistic predictions."""
     probs_np = _to_numpy(probs)
     targets_np = _to_numpy(targets)
     if targets_np.ndim == 1:
@@ -79,6 +85,7 @@ def brier_score(probs, targets):
 
 
 def extract_exog_betas(model):
+    """Extract exogenous coefficients (beta) if the model exposes them."""
     if hasattr(model, "utilities2"):
         betas = model.utilities2.weight.detach().cpu().numpy().flatten()
         return betas
@@ -86,6 +93,7 @@ def extract_exog_betas(model):
 
 
 def compute_direct_elasticities(probs, x_data, betas_exog, x_vars):
+    """Compute direct elasticities for each continuous variable."""
     if betas_exog is None:
         return {}
     probs_np = _to_numpy(probs)
@@ -103,6 +111,7 @@ def compute_direct_elasticities(probs, x_data, betas_exog, x_vars):
 
 
 def compute_vot(betas_exog, x_vars, time_var="TT_SCALED(/100)", cost_var="COST_SCALED(/100)"):
+    """Compute Value of Time (VoT) from time/cost coefficients when available."""
     if betas_exog is None:
         return None
     if time_var not in x_vars or cost_var not in x_vars:
@@ -115,6 +124,7 @@ def compute_vot(betas_exog, x_vars, time_var="TT_SCALED(/100)", cost_var="COST_S
 
 
 def compute_uncertainty(alpha):
+    """Compute evidential uncertainty from Dirichlet alpha parameters."""
     if alpha is None:
         return None
     alpha_np = _to_numpy(alpha)
@@ -123,6 +133,7 @@ def compute_uncertainty(alpha):
 
 
 def evaluate_model(model, x_data, q_data, y_data, x_vars=None, evidential=False, n_bins=15):
+    """Evaluate a model and return a dictionary of classification/calibration metrics."""
     probs, evidence, alpha = get_probabilities(model, x_data, q_data, evidential=evidential)
     metrics = classification_metrics(probs, y_data)
     metrics["ece"] = expected_calibration_error(probs, y_data, n_bins=n_bins)
