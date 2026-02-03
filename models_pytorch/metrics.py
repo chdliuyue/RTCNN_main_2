@@ -34,7 +34,7 @@ def _accepts_single_input(model):
 def _prepare_single_input(x_tensor):
     """Prepare tensor for models that only accept X (e.g., plain MNL)."""
     if x_tensor.ndim == 4 and x_tensor.shape[-1] == 1:
-        return x_tensor.permute(0, 3, 1, 2)
+        return x_tensor.squeeze(-1)
     return x_tensor
 
 
@@ -112,6 +112,9 @@ def extract_exog_betas(model):
         return betas
     if hasattr(model, "conv"):
         betas = model.conv.weight.detach().cpu().numpy().flatten()
+        return betas
+    if hasattr(model, "beta"):
+        betas = model.beta.detach().cpu().mean(dim=1).numpy().flatten()
         return betas
     return None
 
