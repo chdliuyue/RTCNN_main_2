@@ -112,7 +112,6 @@ def MNL_train(
         for i, data in enumerate(train_loader):
             X, _, y = data[0].to(device), data[1].to(device), data[2].to(device)
             optimizer.zero_grad()
-            X = X.permute(0, 3, 1, 2)
             output = mnl_model(X)
             loss = criterion(output, y)
             loss.backward()

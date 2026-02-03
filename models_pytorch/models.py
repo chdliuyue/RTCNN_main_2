@@ -9,14 +9,16 @@ def MNL(vars_num, choices_num, logits_activation='softmax'):
     class Model(nn.Module):
         def __init__(self):
             super(Model, self).__init__()
-            self.conv = nn.Conv2d(1, 1, kernel_size=(vars_num, 1), stride=1, padding=0, bias=False)
+            self.beta = nn.Parameter(torch.zeros(vars_num, choices_num, dtype=torch.float32))
             self.activation = F.softmax if logits_activation == 'softmax' else F.relu
 
         def forward(self, x):
-            x = self.conv(x)
-            x = x.reshape(-1, choices_num)
-            x = self.activation(x, dim=1)
-            return x
+            if x.dim() == 4 and x.size(-1) == 1:
+                x = x.squeeze(-1)
+            x = x.float()
+            utilities = torch.sum(x * self.beta, dim=1)
+            output = self.activation(utilities, dim=1)
+            return output
 
     model = Model()
     total_params = sum(p.numel() for p in model.parameters())
